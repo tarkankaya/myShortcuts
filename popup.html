@@ -17,6 +17,7 @@
         </header>
         <label class="sr-only" for="searchInput">Search shortcuts</label>
         <input data-editor hidden id="searchInput" type="search" placeholder="Search shortcuts...">
+        <p data-editor hidden id="reorderHint">Drag icons to reorder. Or focus an icon and use Alt + arrow keys.</p>
         <div id="buttonsContainer"></div>
         <p id="emptyState">Double-click to add shortcuts.</p>
         <form id="addForm" data-editor hidden>
@@ -40,6 +41,7 @@
                     <label class="check-label"><input id="themeArtwork" type="checkbox" checked> Include theme artwork, when available</label>
                 </div>
                 <div id="colorControls" hidden>
+                    <button id="randomColorsButton" type="button">Random color</button>
                     <div class="color-field">
                         <label for="colorOneHex">First color</label>
                         <div class="color-row"><span id="colorOnePreview" class="color-preview" aria-hidden="true"></span><input id="colorOneHex" class="color-hex" value="#6a5acd" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#6a5acd"></div>
@@ -99,6 +101,14 @@
                     <button id="confirmRestoreButton" type="button">Replace links</button>
                     <button id="cancelRestoreButton" type="button">Cancel</button>
                 </div>
+            </details>
+            <details id="iconDetails">
+                <summary>Website icons</summary>
+                <p>Letter icons work offline. Optional website icons use Google's favicon service: your saved website domains and normal connection information are sent to Google. Full links, searches, and photos are not sent.</p>
+                <p id="iconPermissionStatus">Website icons are off.</p>
+                <button id="enableIconsButton" type="button">Enable website icons</button>
+                <button id="disableIconsButton" type="button" hidden>Turn off website icons</button>
+                <p><a href="privacy.html" target="_blank" rel="noopener noreferrer">Privacy notice</a></p>
             </details>
             <button id="openEditorButton" class="quiet" type="button">Keep editor open in a tab</button>
         </section>

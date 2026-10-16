@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>My Shortcuts</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body tabindex="0" title="Double-click empty space to edit shortcuts">
+    <div id="backgroundLayer" aria-hidden="true"></div>
+    <div id="shadeLayer" aria-hidden="true"></div>
+    <main>
+        <header data-editor hidden>
+            <h1>My Shortcuts <span id="count">0</span></h1>
+            <button id="manageButton" type="button">Done</button>
+        </header>
+        <label class="sr-only" for="searchInput">Search shortcuts</label>
+        <input data-editor hidden id="searchInput" type="search" placeholder="Search shortcuts...">
+        <p data-editor hidden id="reorderHint">Drag icons to reorder. Or focus an icon and use Alt + arrow keys.</p>
+        <div id="buttonsContainer"></div>
+        <p id="emptyState">Double-click to add shortcuts.</p>
+        <form id="addForm" data-editor hidden>
+            <label class="sr-only" for="siteNameInput">Website address</label>
+            <input id="siteNameInput" placeholder="Website address, e.g. youtube.com" required>
+            <button class="primary" type="submit">+ Add</button>
+        </form>
+        <p data-editor hidden id="status" role="status" aria-live="polite"></p>
+        <section class="settings" data-editor hidden>
+            <details id="backgroundDetails">
+                <summary>Background</summary>
+                <p id="backgroundNote">The background behind your icons follows Firefox.</p>
+                <label for="backgroundMode">Style</label>
+                <select id="backgroundMode">
+                    <option value="theme">Follow Firefox theme</option>
+                    <option value="solid">One color</option>
+                    <option value="gradient">Two-color gradient</option>
+                    <option value="image">My photo</option>
+                </select>
+                <div id="themeControls">
+                    <label class="check-label"><input id="themeArtwork" type="checkbox" checked> Include theme artwork, when available</label>
+                </div>
+                <div id="colorControls" hidden>
+                    <button id="randomColorsButton" type="button">Random color</button>
+                    <div class="color-field">
+                        <label for="colorOneHex">First color</label>
+                        <div class="color-row"><span id="colorOnePreview" class="color-preview" aria-hidden="true"></span><input id="colorOneHex" class="color-hex" value="#6a5acd" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#6a5acd"></div>
+                        <div class="swatches" aria-label="First color presets">
+                            <button type="button" data-color-target="colorOne" data-color="#6a5acd" style="--swatch:#6a5acd" aria-label="First color: purple"></button>
+                            <button type="button" data-color-target="colorOne" data-color="#152b46" style="--swatch:#152b46" aria-label="First color: navy"></button>
+                            <button type="button" data-color-target="colorOne" data-color="#c75b7a" style="--swatch:#c75b7a" aria-label="First color: rose"></button>
+                            <button type="button" data-color-target="colorOne" data-color="#247b68" style="--swatch:#247b68" aria-label="First color: green"></button>
+                            <button type="button" data-color-target="colorOne" data-color="#edbc73" style="--swatch:#edbc73" aria-label="First color: sand"></button>
+                            <button type="button" data-color-target="colorOne" data-color="#f2f0eb" style="--swatch:#f2f0eb" aria-label="First color: cream"></button>
+                            <button type="button" data-color-target="colorOne" data-color="#202124" style="--swatch:#202124" aria-label="First color: charcoal"></button>
+                        </div>
+                    </div>
+                    <div id="secondColorControls" class="color-field" hidden>
+                        <label for="colorTwoHex">Second color</label>
+                        <div class="color-row"><span id="colorTwoPreview" class="color-preview" aria-hidden="true"></span><input id="colorTwoHex" class="color-hex" value="#352359" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#352359"></div>
+                        <div class="swatches" aria-label="Second color presets">
+                            <button type="button" data-color-target="colorTwo" data-color="#8a2be2" style="--swatch:#8a2be2" aria-label="Second color: violet"></button>
+                            <button type="button" data-color-target="colorTwo" data-color="#352359" style="--swatch:#352359" aria-label="Second color: plum"></button>
+                            <button type="button" data-color-target="colorTwo" data-color="#eea4b4" style="--swatch:#eea4b4" aria-label="Second color: pink"></button>
+                            <button type="button" data-color-target="colorTwo" data-color="#b8f3dc" style="--swatch:#b8f3dc" aria-label="Second color: mint"></button>
+                            <button type="button" data-color-target="colorTwo" data-color="#f3dbb6" style="--swatch:#f3dbb6" aria-label="Second color: peach"></button>
+                            <button type="button" data-color-target="colorTwo" data-color="#ffffff" style="--swatch:#ffffff" aria-label="Second color: white"></button>
+                            <button type="button" data-color-target="colorTwo" data-color="#101217" style="--swatch:#101217" aria-label="Second color: black"></button>
+                        </div>
+                    </div>
+                </div>
+                <div id="photoControls" hidden>
+                    <button id="photoPickerButton" type="button">Choose photo</button>
+                    <input id="backgroundFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                    <p id="photoHint">Photo selection opens an editor tab so the file picker stays open.</p>
+                    <button id="removePhotoButton" type="button" hidden>Remove photo</button>
+                    <label for="backgroundFit">Photo fit</label>
+                    <select id="backgroundFit"><option value="cover">Fill the background</option><option value="contain">Show the whole photo</option></select>
+                </div>
+                <div id="imagePositionControls" hidden>
+                    <label for="backgroundPosition">Image position</label>
+                    <select id="backgroundPosition"><option value="center center">Center</option><option value="top center">Top</option><option value="bottom center">Bottom</option><option value="center left">Left</option><option value="center right">Right</option></select>
+                </div>
+                <label for="backgroundShade">Darken background <output id="shadeValue">0%</output></label>
+                <input id="backgroundShade" type="range" min="0" max="80" value="0">
+                <button id="resetBackground" type="button">Use Firefox theme again</button>
+            </details>
+            <details id="backupDetails">
+                <summary>Backup &amp; restore</summary>
+                <p>One link per line. Save a text file or paste it back here.</p>
+                <button id="exportButton" class="primary" type="button">Download .txt backup</button>
+                <label for="restoreText">Links to restore</label>
+                <textarea id="restoreText" rows="3" placeholder="https://youtube.com&#10;https://github.com"></textarea>
+                <div class="row"><button id="importFileButton" type="button">Choose .txt file</button><span id="fileName"></span></div>
+                <input id="importFile" type="file" accept=".txt,text/plain" hidden>
+                <label for="restoreMode">Restore method</label>
+                <select id="restoreMode"><option value="merge">Add links (skip duplicates)</option><option value="replace">Replace existing links</option></select>
+                <button id="restoreButton" type="button">Restore links</button>
+                <div id="replaceConfirmation" role="group" aria-label="Confirm replacing shortcuts" hidden>
+                    <p id="replaceMessage"></p>
+                    <button id="confirmRestoreButton" type="button">Replace links</button>
+                    <button id="cancelRestoreButton" type="button">Cancel</button>
+                </div>
+            </details>
+            <details id="iconDetails">
+                <summary>Website icons</summary>
+                <p>Letter icons work offline. Optional website icons use Google's favicon service: your saved website domains and normal connection information are sent to Google. Full links, searches, and photos are not sent.</p>
+                <p id="iconPermissionStatus">Website icons are off.</p>
+                <button id="enableIconsButton" type="button">Enable website icons</button>
+                <button id="disableIconsButton" type="button" hidden>Turn off website icons</button>
+                <p><a href="privacy.html" target="_blank" rel="noopener noreferrer">Privacy notice</a></p>
+            </details>
+            <button id="openEditorButton" class="quiet" type="button">Keep editor open in a tab</button>
+        </section>
+    </main>
+    <script src="popup.js"></script>
+</body>
+</html>

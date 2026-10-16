@@ -1,0 +1,29 @@
+{
+  "manifest_version": 2,
+  "name": "My Shortcuts",
+  "version": "1.2.0",
+  "description": "Compact shortcuts with Firefox theme matching, custom backgrounds and text backups.",
+  "permissions": ["storage"],
+  "icons": {
+    "128": "icon.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{919c8338-a3dc-4e14-83cb-7c9632925379}",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "optional": ["browsingActivity"]
+      }
+    }
+  },
+  "options_ui": {
+    "page": "popup.html#edit",
+    "open_in_tab": true
+  },
+  "browser_action": {
+    "default_icon": "icon.png",
+    "default_popup": "popup.html",
+    "default_title": "My Shortcuts"
+  }
+}

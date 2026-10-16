@@ -51,6 +51,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let background = { ...defaults };
     let theme = {};
     let editing = false;
+    let remoteIconsAllowed = false;
     let windowId;
     let pendingWrites = 0;
     let writeQueue = Promise.resolve();
@@ -206,6 +207,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         $("themeControls").hidden = background.mode !== "theme";
         $("colorControls").hidden = !["solid", "gradient"].includes(background.mode);
         $("secondColorControls").hidden = background.mode !== "gradient";
+        $("randomColorsButton").textContent = background.mode === "gradient" ? "Random colors" : "Random color";
         $("photoControls").hidden = background.mode !== "image";
         $("imagePositionControls").hidden = !["theme", "image"].includes(background.mode);
         $("removePhotoButton").hidden = !background.image;
@@ -228,6 +230,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch { theme = {}; }
         applyBackground();
     }
+    let draggedLink = null;
+    function moveShortcut(link, target) {
+        const from = shortcuts.indexOf(link), to = shortcuts.indexOf(target);
+        if (from < 0 || to < 0 || from === to) return;
+        const next = [...shortcuts];
+        next.splice(from, 1);
+        next.splice(to, 0, link);
+        return persistLinks(next, "Shortcut order saved.");
+    }
     function render() {
         $("buttonsContainer").replaceChildren();
         const query = editing ? $("searchInput").value.trim().toLowerCase() : "";
@@ -242,15 +253,59 @@ document.addEventListener("DOMContentLoaded", async () => {
             const anchor = document.createElement("a");
             anchor.href = link; anchor.target = "_blank"; anchor.rel = "noopener noreferrer";
             anchor.title = link; anchor.setAttribute("aria-label", "Open " + host);
-            const icon = document.createElement("img");
-            icon.src = "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=32";
-            icon.alt = "";
-            icon.addEventListener("error", () => {
-                const fallback = document.createElement("span");
-                fallback.className = "fallback-icon"; fallback.textContent = host.slice(0, 1).toUpperCase();
-                icon.replaceWith(fallback);
-            }, { once: true });
-            anchor.append(icon);
+            anchor.draggable = editing;
+            anchor.addEventListener("click", event => { if (editing) event.preventDefault(); });
+            anchor.addEventListener("dragstart", event => {
+                if (!editing) { event.preventDefault(); return; }
+                draggedLink = link;
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", link);
+                wrapper.classList.add("dragging");
+            });
+            anchor.addEventListener("dragend", () => {
+                draggedLink = null;
+                document.querySelectorAll(".dragging, .drop-target").forEach(element => element.classList.remove("dragging", "drop-target"));
+            });
+            wrapper.addEventListener("dragover", event => {
+                if (!editing || !draggedLink || draggedLink === link) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                wrapper.classList.add("drop-target");
+            });
+            wrapper.addEventListener("dragleave", event => {
+                if (!wrapper.contains(event.relatedTarget)) wrapper.classList.remove("drop-target");
+            });
+            wrapper.addEventListener("drop", event => {
+                if (!editing || !draggedLink) return;
+                event.preventDefault();
+                const source = draggedLink;
+                draggedLink = null;
+                moveShortcut(source, link);
+            });
+            anchor.addEventListener("keydown", event => {
+                if (!editing || !event.altKey || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+                event.preventDefault();
+                const tiles = Array.from($("buttonsContainer").children);
+                const columns = tiles.filter(tile => tile.offsetTop === tiles[0].offsetTop).length;
+                const offset = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns }[event.key];
+                const target = visible[visible.indexOf(link) + offset];
+                if (target) {
+                    moveShortcut(link, target);
+                    Array.from($("buttonsContainer").querySelectorAll("a")).find(item => item.href === link)?.focus();
+                }
+            });
+            const fallback = document.createElement("span");
+            fallback.className = "fallback-icon";
+            fallback.textContent = host.slice(0, 1).toUpperCase();
+            if (remoteIconsAllowed) {
+                const icon = document.createElement("img");
+                icon.alt = "";
+                icon.draggable = false;
+                icon.referrerPolicy = "no-referrer";
+                icon.addEventListener("error", () => icon.replaceWith(fallback), { once: true });
+                icon.src = "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=32";
+                anchor.append(icon);
+            } else anchor.append(fallback);
             const remove = document.createElement("button");
             remove.className = "remove-btn"; remove.textContent = "\u00d7"; remove.hidden = !editing;
             remove.setAttribute("aria-label", "Remove " + host);
@@ -283,6 +338,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     function inToolbarPopup() {
         try { return Boolean(api?.extension?.getViews({ type: "popup" }).includes(window)); } catch { return false; }
     }
+    async function refreshIconPermission() {
+        try {
+            const permissions = await api?.permissions?.getAll();
+            remoteIconsAllowed = Boolean(permissions?.data_collection?.includes("browsingActivity"));
+        } catch { remoteIconsAllowed = false; }
+        $("enableIconsButton").hidden = remoteIconsAllowed;
+        $("disableIconsButton").hidden = !remoteIconsAllowed;
+        $("iconPermissionStatus").textContent = remoteIconsAllowed ? "Website icons are on. You can turn them off at any time." : "Website icons are off. No shortcut domains are sent for icons.";
+        render();
+    }
     async function openEditor(section) {
         await writeQueue;
         if (api?.tabs?.create && api?.runtime?.getURL) {
@@ -313,6 +378,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadState();
     syncBackground(); render();
     await refreshTheme();
+    await refreshIconPermission();
+    $("enableIconsButton").addEventListener("click", async () => {
+        if (inToolbarPopup()) {
+            try { await openEditor("icons"); } catch { status("Could not open the icon settings tab.", true); }
+            return;
+        }
+        if (!api?.permissions?.request) return status("Website icons require Firefox 140 or later with this add-on installed.", true);
+        try {
+            const granted = await api.permissions.request({ data_collection: ["browsingActivity"] });
+            await refreshIconPermission();
+            status(granted ? "Website icons enabled." : "Website icons remain off.");
+        } catch { status("Permission was not granted. Offline letter icons are still available.", true); }
+    });
+    $("disableIconsButton").addEventListener("click", async () => {
+        try {
+            await api.permissions.remove({ data_collection: ["browsingActivity"] });
+            await refreshIconPermission();
+            status(remoteIconsAllowed ? "Permission could not be removed. Use the add-on's Permissions settings.": "Website icons turned off.");
+        } catch { status("Could not remove permission. Use the add-on's Permissions settings.", true); }
+    });
+    api?.permissions?.onAdded?.addListener(refreshIconPermission);
+    api?.permissions?.onRemoved?.addListener(refreshIconPermission);
     $("searchInput").addEventListener("input", render);
     $("manageButton").addEventListener("click", () => setEditing(false));
     document.body.addEventListener("dblclick", event => {
@@ -334,6 +421,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch (error) { status(error.message, true); }
     });
     $("backgroundMode").addEventListener("change", () => saveBackground({ ...background, mode: $("backgroundMode").value }));
+    $("randomColorsButton").addEventListener("click", () => {
+        const randomColor = () => "#" + Math.floor(Math.random() * 0x1000000).toString(16).padStart(6, "0");
+        const next = { ...background, colorOne: randomColor() };
+        if (background.mode === "gradient") next.colorTwo = randomColor();
+        saveBackground(next);
+    });
     $("themeArtwork").addEventListener("change", () => saveBackground({ ...background, themeArtwork: $("themeArtwork").checked }));
     ["backgroundPosition", "backgroundFit", "backgroundShade"].forEach(id => {
         const key = { backgroundPosition: "position", backgroundFit: "fit", backgroundShade: "shade" }[id];
@@ -443,13 +536,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     darkScheme.addEventListener("change", () => refreshTheme());
     window.addEventListener("focus", () => refreshTheme());
     const section = location.hash.slice(1);
-    if (["edit", "photo", "backup"].includes(section)) {
+    if (["edit", "photo", "backup", "icons"].includes(section)) {
         document.body.classList.add("standalone");
         setEditing(true);
         if (section === "photo") {
             $("backgroundDetails").open = true;
             await saveBackground({ ...background, mode: "image" }, "Choose a photo below. This editor stays open while you select it.");
         } else if (section === "backup") $("backupDetails").open = true;
+        else if (section === "icons") $("iconDetails").open = true;
     }
     $("photoHint").textContent = inToolbarPopup() ? "Photo selection opens an editor tab so the file picker stays open." : "PNG, JPEG or WebP, up to 20 MB. Large photos are resized for storage.";
     $("openEditorButton").hidden = !inToolbarPopup();
